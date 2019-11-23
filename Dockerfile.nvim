@@ -1,0 +1,58 @@
+ARG build_tag
+FROM ${build_tag}
+
+RUN apt-get update && \
+    apt-get -y install npm \
+        neovim \
+        tmux \
+        zsh \
+	htop \
+        powerline \
+        fonts-powerline \
+        python3 
+
+# install yarn 
+RUN npm install --global yarn
+
+
+# install oh-my-zsh
+RUN git clone https://github.com/robbyrussell/oh-my-zsh.git ~/.oh-my-zsh 
+
+# zsh theme 
+RUN git clone https://github.com/denysdovhan/spaceship-prompt.git "/root/.oh-my-zsh/custom/themes/spaceship-prompt" && \
+    ln -s "/root/.oh-my-zsh/custom/themes/spaceship-prompt/spaceship.zsh-theme" "/root/.oh-my-zsh/themes/spaceship.zsh-theme" && \
+    cp ~/.oh-my-zsh/templates/zshrc.zsh-template ~/.zshrc && \
+    sed -i 's/ZSH_THEME="robbyrussell"/ZSH_THEME="spaceship"/g' ~/.zshrc
+
+# syntax highlighting
+RUN git clone https://github.com/zsh-users/zsh-syntax-highlighting.git "~/.zsh-syntax-highlighting" --depth 1 && \
+    echo "source ~/.zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" >> "~/.zshrc"
+
+
+# install tmux configs
+RUN git clone https://github.com/adkingston/tmux-config.git ~/.tmux && \
+    ~/.tmux/install.sh
+
+# neovim configs
+RUN git clone https://github.com/adkingston/nvim-config.git ~/.config/
+# install vim-plug
+RUN curl -fLo ~/.local/share/nvim/site/autoload/plug.vim --create-dirs \
+    https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
+
+# instal plugins
+RUN nvim +PlugInstall +qa
+RUN nvim +call coc#util#install +qa
+
+EXPOSE 3030
+EXPOSE 3000
+
+COPY /secrets/ca.crt /ssl/ca.crt
+COPY /secrets/mongodb_pswd /run/secrets/mongodb_pswd
+
+# install docker
+RUN curl -fsSLO https://download.docker.com/linux/static/stable/x86_64/docker-18.09.1.tgz \
+  && sudo tar xzvf docker-18.09.1.tgz --strip 1 \
+                 -C /usr/local/bin docker/docker \
+  && rm docker-18.09.1.tgz
+
+ENTRYPOINT ["zsh"]
